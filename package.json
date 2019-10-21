@@ -1,0 +1,14 @@
+{
+  "name": "win-scripts",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "init": "deploy init",
+    "install": "deploy install",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Chris. Webster <chris@webstech.net> (https://www.webstech.com)",
+  "license": "MIT",
+  "description": ""
+}
