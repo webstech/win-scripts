@@ -232,6 +232,7 @@ goto :EOF
 @echo group is a specific group to be updated
 goto :EOF
 
+:severl flavours of noise
 echo hi there|awk '/t(.*)r/ { print strftime("%y-%m-%d;%H:%M:%S;") $1 }'
 rem expecting:
 rem 19-12-04;16:58:47;hi
