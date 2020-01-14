@@ -1,2 +1,2 @@
-%echo off
-%echo %%PATH:;=&echo.%%
+@echo off
+echo %PATH:;=&echo.%
