@@ -10,7 +10,7 @@
 
 @rem Initial run with /init option.  The git config must be updated with the
 @rem sources, symbols and filters associated with each source.
-@rem git config --add quote.sources "tsx iex"
+@rem git config --add quote.sources "tsx iex tdn"
 @rem git config --add tsx.url https://web.tmxmoney.com/quote.php?qm_symbol=$SYM$
 @rem git config --add iex.url https://cloud.iexapis.com/stable/stock/$SYM$/quote/latestPrice?token=pk_feeddeadbeef
 @rem git config --add iex.filter /.*/

@@ -2,13 +2,25 @@
   "name": "win-scripts",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "init": "deploy init",
     "install": "deploy install",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "quote": "node src/get_quote.js"
   },
   "keywords": [],
   "author": "Chris. Webster <chris@webstech.net> (https://www.webstech.com)",
   "license": "MIT",
-  "description": ""
+  "description": "",
+  "dependencies": {
+    "axios": "^0.19.2",
+    "commander": "^4.0.1",
+    "dugite": "^1.87.6",
+    "mysql": "^2.18.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/webstech/win-scripts.git"
+  }
 }
