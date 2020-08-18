@@ -210,14 +210,6 @@ pushd %target_dir%
 git init
 popd
 
-if 1 equ 0 (
-@FOR  /f "tokens=1-2" %%i IN ( %target_dir%\..\quotes.txt ) DO (
-	if /i %%i neq source (
-		set stock=%%j
-		touch %target_dir%\%%i_!stock:.=_!.csv
-	)
-)
-)
 goto :EOF
 
 :help
