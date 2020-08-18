@@ -4,8 +4,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "init": "deploy init",
-    "install": "deploy install",
+    "initdist": "deploy init",
+    "dist": "deploy install",
     "test": "echo \"Error: no test specified\" && exit 1",
     "quote": "node src/get_quote.js"
   },
@@ -15,8 +15,8 @@
   "description": "",
   "dependencies": {
     "axios": "^0.19.2",
-    "commander": "^4.0.1",
-    "dugite": "^1.87.6",
+    "commander": "^4.1.1",
+    "dugite": "^1.91.3",
     "mysql": "^2.18.1"
   },
   "repository": {
