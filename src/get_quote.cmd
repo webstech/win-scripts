@@ -122,10 +122,11 @@ FOR  %%i IN ( %qsources% ) DO (
 			@rem Need filename for rename
 			@rem FOR  %%i IN (!FN!) do set bfn=%%~nxi
 			@rem if exist !FN! ren !FN! !bfn!.bak
-			call set uri=!url:$SYM$=%%i!
+			set sym=!stock:.=-!
+			call set uri=!url:$SYM$=%%sym%%!
 
 			@rem curl -s !uri!|awk "!filter! { match($0,/[0-9.]+/); print strftime(""%%y-%%m-%%d;%%H:%%M:%%S;"") ""%%i;"" substr($0,RSTART,RLENGTH)}" >!FN!
-			curl -s !uri!|awk "!filter! { match($0,/[0-9.]+/); print ""%%i,"" substr($0,RSTART,RLENGTH)}" >>!FN!
+			curl -s !uri!|awk "!filter! { match($0,!filter!); x=substr($0,RSTART,RLENGTH); match(x,/[0-9.]+/); print ""%%i,"" substr(x,RSTART,RLENGTH); exit}" >>!FN!
 
 			@rem if file not found or empty, no quote was obtained so collect failures
 			if not exist !FN! (
