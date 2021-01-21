@@ -14,9 +14,9 @@
   "license": "MIT",
   "description": "",
   "dependencies": {
-    "axios": "^0.19.2",
+    "axios": "^0.21.1",
     "commander": "^7.0.0",
-    "dugite": "^1.91.3",
+    "dugite": "^1.95.0",
     "mysql": "^2.18.1"
   },
   "repository": {
