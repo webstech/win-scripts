@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 // Update stock quotes by scraping from the web.
 
 // The quotes can be used in vlookup in spreadsheets.
@@ -58,12 +60,14 @@ commander.version("1.0.0")
 
 // console.log(os.userInfo());
 (async () => {
-	if (!commander.dir) {
-		commander.dir = await getDefaultDir();
+	const commandOptions = commander.opts();
+
+	if (!commandOptions.dir) {
+		commandOptions.dir = await getDefaultDir();
 	}
 
-	if (commander.init) {
-		return await init(commander.dir);
+	if (commandOptions.init) {
+		return await init(commandOptions.dir);
 	}
 
 	try {
@@ -106,7 +110,7 @@ commander.version("1.0.0")
 		await connection.close();
 		quotes.sort();
 
-		const csvFile = fs.createWriteStream(`${commander.dir}/quotes.csv`);
+		const csvFile = fs.createWriteStream(`${commandOptions.dir}/quotes.csv`);
 		quotes.map((quote) => {
 			csvFile.write(`${quote}\n`);
 		});
@@ -233,7 +237,7 @@ async function init(dir) {
 }
 
 async function git(args) {
-	const result = await dogit.GitProcess.exec(args, commander.dir)
+	const result = await dogit.GitProcess.exec(args, commandOptions.dir)
 
 	if (result.exitCode === 0) {
 	  const output = result.stdout.replace(/\r?\n$/, "");
