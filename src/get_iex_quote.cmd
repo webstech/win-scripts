@@ -19,24 +19,25 @@
 @rem git config --add tdn.url https://www.tdstructurednotes.com/snp/noteDetails.action?noteId=$SYM$
 @rem git config --add tdn.filter /^[ \t]+[0-9.]+[ \t\f\r]*$/
 
-setlocal enabledelayedexpansion
+setlocal enabledelayedexpansion enableextensions
 
 @rem defaults
 for /f "tokens=3* delims= " %%a in ('reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders" /v "Personal"') do (set mydocuments=%%a)
 set target_dir="!mydocuments!\My Money Docs\quotes"
+set skipValue=null
 
 rem
 rem Loop through switches
 rem
 
 :setprm
+goto doit
 if /I .%1==. goto doit
 if /I %1==/dir goto parmDir
 if /I %1==--dir goto parmDir
 
-if /I %1==/init goto parmInit
-if /I %1==--init goto parmInit
-if /I %1==-i goto parmInit
+if /I %1==/all goto parmAll
+if /I %1==--all goto parmAll
 
 if /I %1==/g goto parmFilter
 if /I %1==--filter goto parmFilter
@@ -54,14 +55,14 @@ echo.
 goto help
 
 @rem -------------------
-:parmDir
-shift
-if .%1 neq . set target_dir=%~f1
+:parmAll
+set skipValue=
 goto nxtprm
 
 @rem -------------------
-:parmInit
-set init=true
+:parmDir
+shift
+if .%1 neq . set target_dir=%~f1
 goto nxtprm
 
 @rem -------------------
@@ -87,14 +88,75 @@ rem all done with switches
 rem
 
 :doit
-if /%init% equ /true goto :init
+if .%1 neq . (
+	set stock=%1
+) else (
+	echo Missing stock symbol to quote
+	echo.
+	goto help
+)
 
-@rem if not exist %target_dir% call :init
+set "options=-dir:"" -option2:"" -all: -t: -trace:"
+
+for %%O in (%options%) do for /f "tokens=1,* delims=:" %%A in ("%%O") do set "%%A=%%~B"
+:loop
+if not "%~2"=="" (
+  set "test=!options:*%~2:=! "
+  if "!test!"=="!options! " (
+      echo Error: Invalid option %~2
+  ) else if "!test:~0,1!"==" " (
+      set "%~2=1"
+  ) else (
+      set "%~2=%~3"
+      shift /2
+  )
+  shift /2
+  goto :loop
+)
+set -
+
+set skipValue=null
+if .%-all% neq . set skipValue=
+if .%-t%%-trace% neq . echo on
+if .%-dir% neq . set target_dir=%-dir%
+
+rem if /%init% equ /true goto :init
 
 pushd %target_dir%
-if exist quotes.csv del quotes.csv
-for /F "usebackq delims=" %%i in (`git config --get quote.sources`) do @set qsources=%%i
-if .%filter% equ . set filter=%qsources%
+for /F "usebackq delims=" %%j in (`git config --get iex.token`) do @set token=?token=%%j
+
+rem The following three lines escape a new line and put it in a variable for later.
+rem The empty lines are important!
+set newline=^
+
+
+rem set stock=igb-ct
+set url=https://cloud.iexapis.com/stable/
+set uri=%url%stock/%stock%/quote%token%
+for /F "usebackq delims=" %%j in (`curl -s !uri!`) do @set result=%%j
+
+set "blanks=                         "
+if "%result:~0,1%" neq "{" goto :bad_symbol
+
+set "result=%result:~1,-1%"
+set "result=%result:, = %"
+
+for /F "delims=: tokens=1*" %%i in ("%result:,=!newline!%") do (
+	set item=%%~i
+	set val=%%~j
+	if .%skipValue% neq .!val! (
+		set head=!item!!blanks!
+		@echo !head:~0,25!: !val!
+	)
+)
+for %%i in ("%result%") do (
+	@rem echo item is %%i
+	set item=%%i
+	set id=!item:{}=!
+	set "name=!id::=!" & set "val=%"
+)
+popd
+goto :EOF
 
 @rem Process each source
 FOR  %%i IN ( %qsources% ) DO (
@@ -103,12 +165,9 @@ FOR  %%i IN ( %qsources% ) DO (
 	set ff=!filter:%%i=!
 	if "!ff!" neq "%filter%" (
 
-		set quotes1=
 		for /F "usebackq delims=" %%j in (`git config --get !type!.url`) do @set url=%%j
-		for /F "usebackq delims=" %%j in (`git config --get !type!.filter1`) do @set filter=%%j
+		for /F "usebackq delims=" %%j in (`git config --get !type!.filter`) do @set filter=%%j
 		for /F "usebackq delims=" %%j in (`git config --get !type!.quotes`) do @set quotes=%%j
-		for /F "usebackq delims=" %%j in (`git config --get !type!.quotes1`) do @set quotes1=%%j
-		if .!quotes1! neq . set quotes=!quotes1!
 
 		echo.
 		echo Processing !type!: !quotes!
@@ -205,6 +264,14 @@ echo Processing %quotes%
 	exit /b 8
 )
 
+goto :EOF
+
+@rem extract all symbols and findstr to find similar names
+rem easy solution is to call javascript via node with symbol and pipe file input
+rem script would pull symbol and name if symbol was like the passed symbol
+
+:bad_symbol
+set tmpfile=%temp%\%~nx0.tmp
 goto :EOF
 
 @rem create dir and init git

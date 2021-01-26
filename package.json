@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "type": "module",
+  "bin": {
+    "get_quote": "src/get_quote.js",
+    "get_iex_quote": "src/get_iex_quote.js"
+  },
   "scripts": {
     "initdist": "deploy init",
     "dist": "deploy install",

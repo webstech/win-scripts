@@ -28,11 +28,9 @@ import * as child_process from "child_process";
 import commander from "commander";
 import dogit from "dugite";
 import * as fs from "fs";
-// import * as module from "module";
 import mysql from "mysql";
 import * as readline from "readline";
 import * as util from "util";
-// import os from "os";
 
 const execFile = util.promisify(child_process.execFile);
 const mkdir = util.promisify(fs.mkdir);
@@ -45,23 +43,37 @@ function collect(value, previous) {
 }
 
 commander.version("1.0.0")
-    .usage("[options]")
-    .description("Scrape some quotes off the web")
-    .option("-d, --dir [directory]",
-            "Use a different directory than ~/Documents/My Money Docs/quotes"
-            + "`gitgitgadget.workDir`",
-            undefined)
-    .option("-f, --filter [source]",
-            "Only update the named source.  Multiple filters may be specified.",
-            collect,[])
+	.usage("[options]")
+	.description("Scrape some quotes off the web")
+	.option("-d, --dir [directory]",
+		"Use a different directory than ~/Documents/My Money Docs/quotes"
+		+ "`gitgitgadget.workDir`",
+		undefined)
+	.option("--debug",
+		"Trace extra scum messages")
+	.option("-f, --filter [source]",
+		"Only update the named source.  Multiple filters may be specified.",
+		collect, [])
+	.option("--file <fileName>",
+		"CSV file to be generated.",
+		"quotes.csv")
+	.option("--no-file", "Do not generate csv file.")
+	.option("--db <databaseName>", "Database to save quotes in.", "quotes")
+	.option("--no-db", "Do not update the database.")
 	.option("-i, --init",
-			"Initialize the directory.  Used prior to regular runs.")
-    .parse(process.argv);
+		"Initialize the directory.  Used prior to regular runs.")
+	.parse(process.argv);
 
 // console.log(os.userInfo());
-(async () => {
-	const commandOptions = commander.opts();
+const commandOptions = commander.opts();
+const debugLog = (body) => {
+	return console.log(body);
+};
+const nodebugLog = () => { };
 
+const debug = commandOptions.debug ? debugLog : nodebugLog;
+
+(async () => {
 	if (!commandOptions.dir) {
 		commandOptions.dir = await getDefaultDir();
 	}
@@ -75,67 +87,89 @@ commander.version("1.0.0")
 		const groups = await git(["config", "--get", `quote.sources`]);
 		// console.log(`groups ${groups}`);
 
-		const connection = connectDB({
-			host     : 'localhost',
-			user     : 'loadquotes',
+		const connection = commandOptions.db ? connectDB({
+			host: 'localhost',
+			user: 'loadquotes',
 			// password : 'secret',
-			database : 'quotes'
-		  });
+			database: commandOptions.db
+		}) : fauxConnectDB();
 
 		for (const group of groups.split(" ")) {
 			const symbols = await git(["config", "--get", `${group}.quotes`]);
 			const url = await git(["config", "--get", `${group}.url`]);
 			const filter = await git(["config", "--get", `${group}.filter`]);
+			const filterRegex = new RegExp(filter);
 			const insert = `insert into ${group} set ?`;
 
 			for (const symbol of symbols.split(" ")) {
-				const uri = url.replace(/\$SYM\$/, symbol);
-				const response = await axios.get(uri);
+				const uri = url.replace(/\$SYM\$/, symbol.replace(/\./g, "-"));
+				debugLog(`Requesting ${uri}`);
 
 				let quote;
-				if (typeof(response.data) === "string") {
-					const quoteMatch = response.data.match(filter);
-					if (quoteMatch) {
-						quote = quoteMatch[1];
+				try {
+					const response = await axios.get(uri);
+
+					if (typeof (response.data) === "string") {
+						const quoteMatch = filterRegex.exec(response.data);
+						if (quoteMatch) {
+							quote = quoteMatch[1];
+						} else {
+							continue;
+						}
+					} else {
+						quote = response.data.toString();
 					}
-				} else {
-					quote = response.data.toString();
+				} catch (error) {
+					console.log(`Get failed\n${error}`);
+					continue;
 				}
 
-				quotes.push(`${symbol},${quote}`);
-				await connection.query(insert, {"symbol": symbol, "price": quote});
+				if (quote) {
+					quotes.push(`${symbol},${quote}`);
+					try {
+						await connection.query(insert, { "symbol": symbol, "price": quote });
+					} catch (error) {
+						console.log(`Insert failed\n${error}`);
+					}
+				} else {
+					console.log(`No quote found for ${symbol}`);
+					debugLog(`searching for ${filter}:\n${response.data.toString()}`);
+				}
 			}
 		}
 
 		await connection.close();
-		quotes.sort();
 
-		const csvFile = fs.createWriteStream(`${commandOptions.dir}/quotes.csv`);
-		quotes.map((quote) => {
-			csvFile.write(`${quote}\n`);
-		});
-		csvFile.close();
+		if (commandOptions.file) {
+			quotes.sort();
+
+			const csvFile = fs.createWriteStream(`${commandOptions.dir}/${commandOptions.file}`);
+			quotes.map((quote) => {
+				csvFile.write(`${quote}\n`);
+			});
+			csvFile.close();
+		}
 
 	} catch (error) {
 		console.log(`some commmand failed\n${error}`);
 	}
 })().catch((reason) => {
-    console.log(`Caught error ${reason}:\n${reason.stack}\n`);
-    process.stderr.write(`Caught error ${reason}:\n${reason.stack}\n`);
-    process.exit(1);
+	console.log(`Caught error ${reason}:\n${reason.stack}\n`);
+	process.stderr.write(`Caught error ${reason}:\n${reason.stack}\n`);
+	process.exit(1);
 });
 
 async function getDefaultDir() {
 	const key = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders";
-	const {stdout} = await execFile('reg', ["query", key, "/v", "Personal"], { encoding: 'utf-8' });
-	console.log('Output was:\n', stdout);
+	const { stdout } = await execFile('reg', ["query", key, "/v", "Personal"], { encoding: 'utf-8' });
+	// console.log('Output was:\n', stdout);
 	const match = stdout.match(/Personal\s+REG_SZ\s+(\S+)/);
-	console.log(`x${match[1]}x`);
+	// console.log(`x${match[1]}x`);
 	if (!match) {
 		throw new error("Unable to determine default directory");
 	}
 	// const val = 'reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders" /v "Personal"'
-	return  `${match[1]}/My Money Docs/quotes`;
+	return `${match[1]}/My Money Docs/quotes`;
 }
 
 async function init(dir) {
@@ -145,7 +179,7 @@ async function init(dir) {
 	try {
 		await access(dir, fs.constants.W_OK);
 	} catch (error) {
-        await mkdir(dir, { recursive: true });
+		await mkdir(dir, { recursive: true });
 	}
 
 	// git status on working dir
@@ -160,8 +194,8 @@ async function init(dir) {
 	}
 
 	let rlQuestion = (q) => {
-		return new Promise( (res, rej) => {
-			rl.question(q, answer => {console.log(answer);res(answer)});
+		return new Promise((res, rej) => {
+			rl.question(q, answer => { console.log(answer); res(answer) });
 		});
 	}
 
@@ -189,12 +223,12 @@ async function init(dir) {
 		while (quoteLoop) {
 			const symbols = await rlQuestion(`Enter symbol(s) or null to end.${quotes.length ? ` Symbols ${quotes.join(" ")}` : ""}\n`);
 			console.log(`Symbols: ${quotes.length} ${symbols}`);
-		// TODO: Log the answer in a database
+			// TODO: Log the answer in a database
 			if (!symbols) {
 				break;
 			}
 
-			quotes.push( ...symbols.split(/\s+/).filter((i) => i));
+			quotes.push(...symbols.split(/\s+/).filter((i) => i));
 		}
 
 		if (quotes.length) {
@@ -221,7 +255,7 @@ async function init(dir) {
 	if (groups.length) {
 		try {
 			const status = await git(["config", "--add", `quote.sources`,
-									   `"${groups.join(" ")}"`]);
+				`"${groups.join(" ")}"`]);
 			console.log(`status ${status}`);
 		} catch (error) {
 			console.log(`git commmand failed\n${error}`);
@@ -232,31 +266,36 @@ async function init(dir) {
 
 	rl.close();
 	console.log("init has completed");
-
-	return;
 }
 
 async function git(args) {
 	const result = await dogit.GitProcess.exec(args, commandOptions.dir)
 
 	if (result.exitCode === 0) {
-	  const output = result.stdout.replace(/\r?\n$/, "");
+		const output = result.stdout.replace(/\r?\n$/, "");
 
-	  return output;
+		return output;
 	} else {
-	  throw new Error(`Git failed\n${result.stderr}`);
+		throw new Error(`Git failed\n${result.stderr}`);
 	}
 }
 
-function connectDB( config ) {
-	const connection = mysql.createConnection( config );
+function connectDB(config) {
+	const connection = mysql.createConnection(config);
+	const queryAwait = util.promisify(connection.query);
 	return {
-	  query( sql, args ) {
-		return util.promisify( connection.query )
-		  .call( connection, sql, args );
-	  },
-	  close() {
-		return util.promisify( connection.end ).call( connection );
-	  }
+		query(sql, args) {
+			return queryAwait.call(connection, sql, args);
+		},
+		close() {
+			return util.promisify(connection.end).call(connection);
+		}
 	};
-  }
+}
+
+function fauxConnectDB() {
+	return {
+		query() {},
+		close() {}
+	};
+}
