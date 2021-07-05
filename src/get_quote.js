@@ -25,22 +25,22 @@
 
 import axios from 'axios';
 import * as child_process from "child_process";
-import commander from "commander";
+import { Command } from "commander";
 import dogit from "dugite";
-import * as fs from "fs";
+import { access, mkdir, writeFile } from "fs/promises";
 import mysql from "mysql";
 import * as readline from "readline";
 import * as util from "util";
 
 const execFile = util.promisify(child_process.execFile);
-const mkdir = util.promisify(fs.mkdir);
-const access = util.promisify(fs.access);
 
 // collect filter values
 // const filters =  [];
 function collect(value, previous) {
 	return previous.concat([value]);
 }
+
+const commander = new Command();
 
 commander.version("1.0.0")
 	.usage("[options]")
@@ -64,8 +64,8 @@ commander.version("1.0.0")
 		"Initialize the directory.  Used prior to regular runs.")
 	.parse(process.argv);
 
-// console.log(os.userInfo());
 const commandOptions = commander.opts();
+
 const debugLog = (body) => {
 	return console.log(body);
 };
@@ -85,7 +85,7 @@ const debug = commandOptions.debug ? debugLog : nodebugLog;
 	try {
 		const quotes = [];
 		const groups = await git(["config", "--get", `quote.sources`]);
-		// console.log(`groups ${groups}`);
+		debug(`groups: ${groups}`);
 
 		const connection = commandOptions.db ? connectDB({
 			host: 'localhost',
@@ -94,60 +94,30 @@ const debug = commandOptions.debug ? debugLog : nodebugLog;
 			database: commandOptions.db
 		}) : fauxConnectDB();
 
+		const fallbackGroups = [];
+
 		for (const group of groups.split(" ")) {
-			const symbols = await git(["config", "--get", `${group}.quotes`]);
-			const url = await git(["config", "--get", `${group}.url`]);
-			const filter = await git(["config", "--get", `${group}.filter`]);
-			const filterRegex = new RegExp(filter);
-			const insert = `insert into ${group} set ?`;
+			const fallback = await processGroup(quotes, connection, group);
+			if (fallback) {
+				fallbackGroups.push(fallback);
+			}
+		}
 
-			for (const symbol of symbols.split(" ")) {
-				const uri = url.replace(/\$SYM\$/, symbol.replace(/\./g, "-"));
-				debugLog(`Requesting ${uri}`);
+		if (fallbackGroups.length) {
+			debug(`starting post`);
+			debug(fallbackGroups);
 
-				let quote;
-				try {
-					const response = await axios.get(uri);
-
-					if (typeof (response.data) === "string") {
-						const quoteMatch = filterRegex.exec(response.data);
-						if (quoteMatch) {
-							quote = quoteMatch[1];
-						} else {
-							continue;
-						}
-					} else {
-						quote = response.data.toString();
-					}
-				} catch (error) {
-					console.log(`Get failed\n${error}`);
-					continue;
-				}
-
-				if (quote) {
-					quotes.push(`${symbol},${quote}`);
-					try {
-						await connection.query(insert, { "symbol": symbol, "price": quote });
-					} catch (error) {
-						console.log(`Insert failed\n${error}`);
-					}
-				} else {
-					console.log(`No quote found for ${symbol}`);
-					debugLog(`searching for ${filter}:\n${response.data.toString()}`);
-				}
+			for (const group of fallbackGroups) {
+				await processGroup(quotes, connection, group.name, group.reference, group.symbols);
 			}
 		}
 
 		await connection.close();
+		const quoteString = quotes.sort().join("");
+		debug(`quotes collected\n${quoteString}`);
 
 		if (commandOptions.file) {
-			quotes.sort();
-
-			const csvFile = fs.createWriteStream(`${commandOptions.dir}/${commandOptions.file}`);
-			quotes.map((quote) => {
-				csvFile.write(`${quote}\n`);
-			});
-			csvFile.close();
+			await writeFile(`${commandOptions.dir}/${commandOptions.file}`, quoteString);
 		}
 
 	} catch (error) {
@@ -158,6 +128,65 @@ const debug = commandOptions.debug ? debugLog : nodebugLog;
 	process.stderr.write(`Caught error ${reason}:\n${reason.stack}\n`);
 	process.exit(1);
 });
+
+async function processGroup(quotes, connection, group, baseGroup = undefined, symbolsIn = undefined ) {
+	const symbols = symbolsIn ? symbolsIn
+							  : await git(["config", "--get", `${group}.quotes`]);
+	const url = await git(["config", "--get", `${group}.url`]);
+	const alternateGroup = await git(["config", "--default", "", "--get", `${group}.alternate`]);
+	const filter = await git(["config", "--get", `${group}.filter`]);
+	const filterRegex = new RegExp(filter);
+	const insert = `insert into ${baseGroup ? baseGroup : group} set ?`;
+	let fallback;
+	debugLog(`Group ${group}${baseGroup ? `: fallback from ${baseGroup}` : ""}`);
+
+	for (const symbol of typeof(symbols) === "string" ? symbols.split(" ") : symbols) {
+		const uri = url.replace(/\$SYM\$/, symbol.replace(/\./g, "-"));
+		debug(`Requesting ${symbol} from ${uri}`);
+
+		let quote;
+		try {
+			const response = await axios.get(uri);
+
+			if (typeof (response.data) === "string") {
+				const quoteMatch = filterRegex.exec(response.data);
+				if (quoteMatch) {
+					quote = quoteMatch[1];
+				} else {
+					continue;
+				}
+			} else {
+				quote = response.data.toString();
+			}
+		} catch (error) {
+			console.log(`Get failed\n${error}`);
+			if (alternateGroup) {
+				if (fallback) {
+					fallback.symbols.push(symbol);
+				} else {
+					fallback = {name: alternateGroup, symbols: [ symbol ], reference: group };
+				}
+
+				debug(fallback);
+			}
+			continue;
+		}
+
+		if (quote) {
+			quotes.push(`${symbol},${quote}\n`);
+			try {
+				await connection.query(insert, { "symbol": symbol, "price": quote });
+			} catch (error) {
+				console.log(`Insert failed\n${error}`);
+			}
+		} else {
+			console.log(`No quote found for ${symbol}`);
+			debug(`searching for ${filter}:\n${response.data.toString()}`);
+		}
+	}
+
+	return fallback;
+}
 
 async function getDefaultDir() {
 	const key = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders";
