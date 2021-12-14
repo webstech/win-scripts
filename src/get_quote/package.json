@@ -1,0 +1,30 @@
+{
+  "name": "get_quote",
+  "version": "1.0.0",
+  "description": "Extract quotes ",
+  "main": "get_quote.js",
+  "type": "module",
+  "dependencies": {
+    "axios": "*",
+    "commander": "*",
+    "dugite": "*",
+    "mysql": "*"
+  },
+  "devDependencies": {},
+  "bin": {
+    "get_quote": "./get_quote.js",
+    "get_iex_quote": "./get_iex_quote.js"
+  },  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/webstech/win-scripts.git"
+  },
+  "author": "Chris. Webster <chris@webstech.net> (https://www.webstech.com/)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/webstech/win-scripts/issues"
+  },
+  "homepage": "https://github.com/webstech/win-scripts#readme"
+}
