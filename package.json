@@ -3,10 +3,6 @@
   "version": "1.0.0",
   "main": "index.js",
   "type": "module",
-  "bin": {
-    "get_quote": "src/get_quote.js",
-    "get_iex_quote": "src/get_iex_quote.js"
-  },
   "scripts": {
     "initdist": "deploy init",
     "dist": "deploy install",
@@ -17,14 +13,13 @@
   "author": "Chris. Webster <chris@webstech.net> (https://www.webstech.com)",
   "license": "MIT",
   "description": "",
-  "dependencies": {
-    "axios": "^0.21.1",
-    "commander": "^8.0.0",
-    "dugite": "^1.95.0",
-    "mysql": "^2.18.1"
-  },
   "repository": {
     "type": "git",
     "url": "git://github.com/webstech/win-scripts.git"
-  }
+  },
+  "workspaces": [
+    "src\\get_quote",
+    "src\\scripts",
+    "src\\durf"
+  ]
 }
