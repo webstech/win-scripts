@@ -46,8 +46,7 @@ commander.version("1.0.0")
 	.usage("[options]")
 	.description("Scrape some quotes off the web")
 	.option("-d, --dir [directory]",
-		"Use a different directory than ~/Documents/My Money Docs/quotes"
-		+ "`gitgitgadget.workDir`",
+		"Use a different directory than ~/Documents/My Money Docs/quotes.",
 		undefined)
 	.option("--debug",
 		"Trace extra scum messages")
