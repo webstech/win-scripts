@@ -25,7 +25,7 @@
 
 import axios from 'axios';
 import * as child_process from "child_process";
-import commander from "commander";
+import { Command } from "commander";
 import dogit from "dugite";
 import * as fs from "fs";
 import * as readline from "readline";
@@ -41,6 +41,8 @@ but it is not clear what it should be.`
 const execFile = util.promisify(child_process.execFile);
 const mkdir = util.promisify(fs.mkdir);
 const access = util.promisify(fs.access);
+
+const commander = new Command();
 
 commander.version("1.0.0")
     .usage("symbol [options]")
