@@ -134,10 +134,11 @@ async function processGroup(quotes, connection, group, baseGroup = undefined, sy
 	const url = await git(["config", "--get", `${group}.url`]);
 	const alternateGroup = await git(["config", "--default", "", "--get", `${group}.alternate`]);
 	const filter = await git(["config", "--get", `${group}.filter`]);
+	const table = await git(["config", "--default", baseGroup ? baseGroup : group, "--get", `${group}.table` ]);
 	const filterRegex = new RegExp(filter);
-	const insert = `insert into ${baseGroup ? baseGroup : group} set ?`;
+	const insert = `insert into ${table} set ?`;
 	let fallback;
-	debugLog(`Group ${group}${baseGroup ? `: fallback from ${baseGroup}` : ""}`);
+	debugLog(`Group ${group}${baseGroup ? `: fallback from ${baseGroup}` : ""} Table: ${table}`);
 
 	for (const symbol of typeof(symbols) === "string" ? symbols.split(" ") : symbols) {
 		const uri = url.replace(/\$SYM\$/, symbol.replace(/\./g, "-"));
