@@ -7,7 +7,7 @@
     "initdist": "deploy init",
     "dist": "deploy install",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "quote": "node src/get_quote.js"
+    "quote": "node src/get_quote/get_quote.js"
   },
   "keywords": [],
   "author": "Chris. Webster <chris@webstech.net> (https://www.webstech.com)",
