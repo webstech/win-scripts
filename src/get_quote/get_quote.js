@@ -159,7 +159,7 @@ async function processGroup(quotes, connection, group, baseGroup = undefined, sy
 				quote = response.data.toString();
 			}
 		} catch (error) {
-			console.log(`Get failed\n${error}`);
+			console.log(`Get failed for ${symbol} at ${uri}\n${error}`);
 			if (alternateGroup) {
 				if (fallback) {
 					fallback.symbols.push(symbol);
