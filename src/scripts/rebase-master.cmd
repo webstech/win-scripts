@@ -20,6 +20,7 @@ if /I .%br% neq .%main% (
 )
 
 git pull -r upstream %main%
+git push
 
 if /I .%br% neq .%main% (
 	git checkout %br%
