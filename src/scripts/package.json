@@ -6,7 +6,8 @@
   "devDependencies": {},
   "bin": {
     "pathlist": "./pathlist.cmd",
-    "rebase-master": "./rebase-master.cmd"
+    "rebase-master": "./rebase-master.cmd",
+    "robocop": "./robocop.cmd"
   },
   "scripts": {
     "deploy": "npm install -g %npm_package_name%-%npm_package_version%.tgz",
