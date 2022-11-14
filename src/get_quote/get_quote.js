@@ -27,8 +27,10 @@ import axios from 'axios';
 import * as child_process from "child_process";
 import { Command } from "commander";
 import dogit from "dugite";
+import { readFile } from 'node:fs/promises';
 import { access, mkdir, writeFile } from "fs/promises";
 import mysql from "mysql";
+import { env } from 'process';
 import * as readline from "readline";
 import * as util from "util";
 
@@ -134,9 +136,10 @@ async function processGroup(quotes, connection, group, baseGroup = undefined, sy
 	const url = await git(["config", "--get", `${group}.url`]);
 	const alternateGroup = await git(["config", "--default", "", "--get", `${group}.alternate`]);
 	const filter = await git(["config", "--get", `${group}.filter`]);
+    const getter = await git(["config", "--default", "", "--get", `${group}.getter`]);
 	const table = await git(["config", "--default", baseGroup ? baseGroup : group, "--get", `${group}.table` ]);
 	const filterRegex = new RegExp(filter);
-	const insert = `insert into ${table} set ?`;
+    const insert = `insert into ${table} set ?`;
 	let fallback;
 	debugLog(`Group ${group}${baseGroup ? `: fallback from ${baseGroup}` : ""} Table: ${table}`);
 
@@ -146,7 +149,8 @@ async function processGroup(quotes, connection, group, baseGroup = undefined, sy
 
 		let quote;
 		try {
-			const response = await axios.get(uri);
+			const response = await getData(uri, symbol);
+			// console.log(typeof (response.data));
 
 			if (typeof (response.data) === "string") {
 				const quoteMatch = filterRegex.exec(response.data);
@@ -156,7 +160,12 @@ async function processGroup(quotes, connection, group, baseGroup = undefined, sy
 					continue;
 				}
 			} else {
-				quote = response.data.toString();
+                if (!getter) {
+                    quote = response.data.toString();
+                } else {
+                    const exports = await import(getter);
+                    quote = await exports.default(symbol, response.data);
+                }
 			}
 		} catch (error) {
 			console.log(`Get failed for ${symbol} at ${uri}\n${error}`);
@@ -186,6 +195,20 @@ async function processGroup(quotes, connection, group, baseGroup = undefined, sy
 	}
 
 	return fallback;
+}
+
+// Check for file override in env var - primarily used for testing regex
+async function getData(uri, symbol) {
+    const varName = `GET_QUOTE_${symbol}`;
+    if (!env[varName]) {
+        return await axios.get(uri);
+    } else {
+        const fileName = env[varName];
+        const response = {data: ""};
+        debugLog(`Reading file ${fileName} for symbol ${symbol} data`)
+        response.data = await readFile(fileName, { encoding: 'utf8' });
+        return response;
+    }
 }
 
 async function getDefaultDir() {
