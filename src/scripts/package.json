@@ -1,9 +1,8 @@
 {
-  "name": "scripts",
+  "name": "@webstech/scripts",
   "version": "1.0.0",
   "description": "Windows command files",
   "main": "index.js",
-  "devDependencies": {},
   "bin": {
     "pathlist": "./pathlist.cmd",
     "rebase-master": "./rebase-master.cmd",

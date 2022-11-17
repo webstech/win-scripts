@@ -7,18 +7,20 @@
     "initdist": "deploy init",
     "dist": "deploy install",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "quote": "node src/get_quote/get_quote.js"
+    "quote": "node src/get_quote/get_quote.js",
+    "pack": "npm run pack --workspaces --if-present",
+    "deploy": "npm run deploy --workspaces --if-present"
   },
   "keywords": [],
   "author": "Chris. Webster <chris@webstech.net> (https://www.webstech.com)",
   "license": "MIT",
-  "description": "",
+  "description": "Monorepo root package.json",
   "repository": {
     "type": "git",
     "url": "git://github.com/webstech/win-scripts.git"
   },
   "workspaces": [
-    "src/get_quote",
-    "src/scripts"
+    "src\\get_quote",
+    "src\\scripts"
   ]
 }
