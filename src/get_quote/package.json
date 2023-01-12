@@ -10,6 +10,7 @@
     "dugite": "*",
     "mysql": "*"
   },
+  "devDependencies": {},
   "bin": {
     "get_quote": "get_quote.js",
     "get_iex_quote": "get_iex_quote.js"
@@ -20,7 +21,7 @@
   },
   "scripts": {
     "deploy": "npm install -g %npm_config_local_prefix%%npm_package_config_pack_dir%\\%npm_package_config_pack_file%%npm_package_version%.tgz",
-    "pack": "npm pack --pack-destination=%npm_config_local_prefix%%npm_package_config_pack_dir% && ren %npm_config_local_prefix%%npm_package_config_pack_dir%\\*-%npm_package_version%.tgz %npm_package_config_pack_file%%npm_package_version%.tgz",
+    "pack": "del /q %npm_config_local_prefix%%npm_package_config_pack_dir%\\* && npm pack --pack-destination=%npm_config_local_prefix%%npm_package_config_pack_dir% && ren %npm_config_local_prefix%%npm_package_config_pack_dir%\\*-%npm_package_version%.tgz %npm_package_config_pack_file%%npm_package_version%.tgz",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -32,6 +33,5 @@
   "bugs": {
     "url": "https://github.com/webstech/win-scripts/issues"
   },
-  "homepage": "https://github.com/webstech/win-scripts#readme",
-  "devDependencies": {}
+  "homepage": "https://github.com/webstech/win-scripts#readme"
 }
