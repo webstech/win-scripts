@@ -52,8 +52,13 @@ commander.version("1.0.0")
 		undefined)
 	.option("--debug",
 		"Trace extra scum messages")
+    .option("-a, --all",
+		"Save all quotes even if not found.\n\nHelps if some quotes must be manually entered.")
 	.option("-f, --filter [source]",
 		"Only update the named source.  Multiple filters may be specified.",
+		collect, [])
+	.option("-g, --group [source]",
+		"Only update the named source.  Multiple groups may be specified.",
 		collect, [])
 	.option("--file <fileName>",
 		"CSV file to be generated.",
@@ -74,6 +79,12 @@ const nodebugLog = () => { };
 
 const debug = commandOptions.debug ? debugLog : nodebugLog;
 
+// Do not save if filter - usually a test
+if (commandOptions.filter.length || commandOptions.group.length) {
+    commandOptions.db = undefined;
+    commandOptions.file = undefined;
+}
+
 (async () => {
 	if (!commandOptions.dir) {
 		commandOptions.dir = await getDefaultDir();
@@ -84,7 +95,7 @@ const debug = commandOptions.debug ? debugLog : nodebugLog;
 	}
 
 	try {
-		const quotes = [];
+		const quotes = new Map();
 		const groups = await git(["config", "--get", `quote.sources`]);
 		debug(`groups: ${groups}`);
 
@@ -97,7 +108,7 @@ const debug = commandOptions.debug ? debugLog : nodebugLog;
 
 		const fallbackGroups = [];
 
-		for (const group of groups.split(" ")) {
+		for (const group of groups.split(" ").filter(value => !commandOptions.group.length || commandOptions.group.includes(value))) {
 			const fallback = await processGroup(quotes, connection, group);
 			if (fallback) {
 				fallbackGroups.push(fallback);
@@ -113,8 +124,9 @@ const debug = commandOptions.debug ? debugLog : nodebugLog;
 			}
 		}
 
-		await connection.close();
-		const quoteString = quotes.sort().join("");
+        await connection.close();
+        const quoteString = [...quotes].filter(([k, v]) => commandOptions.all || v ).sort().join("\n");
+		// console.log(quotes);
 		debug(`quotes collected\n${quoteString}`);
 
 		if (commandOptions.file) {
@@ -132,7 +144,7 @@ const debug = commandOptions.debug ? debugLog : nodebugLog;
 
 async function processGroup(quotes, connection, group, baseGroup = undefined, symbolsIn = undefined ) {
 	const symbols = symbolsIn ? symbolsIn
-							  : await git(["config", "--get", `${group}.quotes`]);
+							  : (await git(["config", "--get", `${group}.quotes`])).split(" ");
 	const url = await git(["config", "--get", `${group}.url`]);
 	const alternateGroup = await git(["config", "--default", "", "--get", `${group}.alternate`]);
 	const filter = await git(["config", "--get", `${group}.filter`]);
@@ -143,7 +155,7 @@ async function processGroup(quotes, connection, group, baseGroup = undefined, sy
 	let fallback;
 	debugLog(`Group ${group}${baseGroup ? `: fallback from ${baseGroup}` : ""} Table: ${table}`);
 
-	for (const symbol of typeof(symbols) === "string" ? symbols.split(" ") : symbols) {
+    for (const symbol of symbols) {
 		const uri = url.replace(/\$SYM\$/, symbol.replace(/\./g, "-"));
 		debug(`Requesting ${symbol} from ${uri}`);
 
@@ -178,11 +190,9 @@ async function processGroup(quotes, connection, group, baseGroup = undefined, sy
 
 				debug(fallback);
 			}
-			continue;
 		}
 
 		if (quote) {
-			quotes.push(`${symbol},${quote}\n`);
 			try {
 				await connection.query(insert, { "symbol": symbol, "price": quote });
 			} catch (error) {
@@ -190,8 +200,11 @@ async function processGroup(quotes, connection, group, baseGroup = undefined, sy
 			}
 		} else {
 			console.log(`No quote found for ${symbol}`);
-			debug(`searching for ${filter}:\n${response.data.toString()}`);
+			// debug(`searching for ${filter}:\n${response.data.toString()}`);
 		}
+
+        // set to new, existing, or zero.
+        quotes.set(symbol, quote || quotes.get(symbol) || 0);
 	}
 
 	return fallback;
