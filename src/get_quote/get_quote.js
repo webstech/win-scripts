@@ -54,6 +54,8 @@ commander.version("1.0.0")
 		"Trace extra scum messages")
     .option("-a, --all",
 		"Save all quotes even if not found.\n\nHelps if some quotes must be manually entered.")
+    .option("-u, --update",
+		"Load the initial quotes from the file.\n\nHelps if some quotes must be manually entered.")
 	.option("-f, --filter [source]",
 		"Only update the named source.  Multiple filters may be specified.",
 		collect, [])
@@ -95,8 +97,9 @@ if (commandOptions.filter.length || commandOptions.group.length) {
 	}
 
 	try {
-		const quotes = new Map();
-		const groups = await git(["config", "--get", `quote.sources`]);
+		const quotes = commandOptions.update ? await loadQuotes(`${commandOptions.dir}/${commandOptions.file}`)
+                                             : new Map();
+        const groups = await git(["config", "--get", `quote.sources`]);
 		debug(`groups: ${groups}`);
 
 		const connection = commandOptions.db ? connectDB({
@@ -222,6 +225,14 @@ async function getData(uri, symbol) {
         response.data = await readFile(fileName, { encoding: 'utf8' });
         return response;
     }
+}
+
+async function loadQuotes(fileName) {
+    debug(`Reading file ${fileName}`)
+    const csv = await readFile(fileName, { encoding: 'utf8' });
+    const quotes = new Map(csv.split(/\n/).map(l => l.split(",")));
+    debug(quotes);
+    return quotes;
 }
 
 async function getDefaultDir() {
