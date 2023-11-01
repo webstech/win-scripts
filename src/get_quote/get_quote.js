@@ -31,8 +31,10 @@ import { readFile } from 'node:fs/promises';
 import { access, mkdir, writeFile } from "fs/promises";
 import mysql from "mysql";
 import { env } from 'process';
+import puppeteer from 'puppeteer-core';
 import * as readline from "readline";
 import * as util from "util";
+import { setTimeout } from "timers/promises";
 
 const execFile = util.promisify(child_process.execFile);
 
@@ -109,10 +111,11 @@ if (commandOptions.filter.length || commandOptions.group.length) {
 			database: commandOptions.db
 		}) : fauxConnectDB();
 
+        const browser = await getPupper();
 		const fallbackGroups = [];
 
 		for (const group of groups.split(" ").filter(value => !commandOptions.group.length || commandOptions.group.includes(value))) {
-			const fallback = await processGroup(quotes, connection, group);
+			const fallback = await processGroup(quotes, {connection, browser}, group);
 			if (fallback) {
 				fallbackGroups.push(fallback);
 			}
@@ -128,6 +131,8 @@ if (commandOptions.filter.length || commandOptions.group.length) {
 		}
 
         await connection.close();
+        await browser.close();
+
         const quoteString = [...quotes].filter(([k, v]) => commandOptions.all || v ).sort().join("\n");
 		// console.log(quotes);
 		debug(`quotes collected\n${quoteString}`);
@@ -145,15 +150,17 @@ if (commandOptions.filter.length || commandOptions.group.length) {
 	process.exit(1);
 });
 
-async function processGroup(quotes, connection, group, baseGroup = undefined, symbolsIn = undefined ) {
+async function processGroup(quotes, {connection, browser}, group, baseGroup = undefined, symbolsIn = undefined ) {
 	const symbols = symbolsIn ? symbolsIn
 							  : (await git(["config", "--get", `${group}.quotes`])).split(" ");
 	const url = await git(["config", "--get", `${group}.url`]);
 	const alternateGroup = await git(["config", "--default", "", "--get", `${group}.alternate`]);
 	const filter = await git(["config", "--get", `${group}.filter`]);
     const getter = await git(["config", "--default", "", "--get", `${group}.getter`]);
+    const selector = await git(["config", "--default", "", "--get", `${group}.selector`]);
 	const table = await git(["config", "--default", baseGroup ? baseGroup : group, "--get", `${group}.table` ]);
 	const filterRegex = new RegExp(filter);
+	const puppetRegex = new RegExp(/([0-9]*\.[0-9][0-9])/);
     const insert = `insert into ${table} set ?`;
 	let fallback;
 	debugLog(`Group ${group}${baseGroup ? `: fallback from ${baseGroup}` : ""} Table: ${table}`);
@@ -164,26 +171,82 @@ async function processGroup(quotes, connection, group, baseGroup = undefined, sy
 
 		let quote;
 		try {
-			const response = await getData(uri, symbol);
-			// console.log(typeof (response.data));
+            // puppeteer selector still somewhat experimental
+            if (selector) {
+                const page = await browser.newPage();
+                try {
+                    await page.goto(uri);
+		            debug(`Got page`);
+                    const cooks = await acceptCookie(page);
+                    if (cooks) {
+                        await setTimeout(1000); // give it a second to recompose
+                    }
 
-			if (typeof (response.data) === "string") {
-				const quoteMatch = filterRegex.exec(response.data);
-				if (quoteMatch) {
-					quote = quoteMatch[1];
-				} else {
-					continue;
-				}
-			} else {
-                if (!getter) {
-                    quote = response.data.toString();
+                    debug(`Checking selector "${selector}"`);
+
+                    var value;
+                    try {
+                        value = await page.$eval(selector, el => el.textContent);
+                        if (!value) {
+		                    debug(`Waiting for selector`);
+                            await page.waitForSelector(selector);
+                            value = await page.$eval(selector, el => el.innerText);
+                        }
+                    } catch (error) {
+			            console.log(`page eval failed\n${error}`);
+		                debug(`Try Waiting for selector"`);
+                        await page.waitForSelector(selector);
+                        value = await page.$eval(selector, el => el.textContent);
+                    }
+		            debug(`Checking value "${value}"`);
+                    const quoteMatch = puppetRegex.exec(value);
+                    await page.close();
+                    debug(quoteMatch);
+
+                    if (quoteMatch) {
+                        quote = quoteMatch[1];
+                    } else {
+                        continue;
+                    }
+                } catch (error) {
+                    debug(await page.content())
+                    await page.close();
+                    throw error;
+                }
+
+            } else {
+                const response = await getData(uri, symbol);
+    			// console.log(typeof (response.data));
+
+                if (typeof (response.data) === "string") {
+                    const quoteMatch = filterRegex.exec(response.data);
+                    if (quoteMatch) {
+                        quote = quoteMatch[1];
+                    } else {
+                        continue;
+                    }
                 } else {
-                    const exports = await import(getter);
-                    quote = await exports.default(symbol, response.data);
+                    if (!getter) {
+                        quote = response.data.toString();
+                    } else {
+                        debug(`Using getter "${getter}"`);
+                        const exports = await import(getter);
+                        quote = await exports.default(symbol, response.data);
+                    }
                 }
 			}
 		} catch (error) {
 			console.log(`Get failed for ${symbol} at ${uri}\n${error}`);
+            if (error.response) {
+                // The request was made and the server responded with a status code
+                // that falls out of the range of 2xx
+                /*
+                console.log(error.response.data);
+                console.log(error.response.status);
+                console.log(error.request);
+                console.log(error.response.headers);
+                */
+            }
 			if (alternateGroup) {
 				if (fallback) {
 					fallback.symbols.push(symbol);
@@ -218,6 +281,28 @@ async function getData(uri, symbol) {
     const varName = `GET_QUOTE_${symbol}`;
     if (!env[varName]) {
         return await axios.get(uri);
+        /*
+        axios.get(uri)
+        .then( (response) => response )
+        .catch(function (error) {
+            if (error.response) {
+              // The request was made and the server responded with a status code
+              // that falls out of the range of 2xx
+              console.log(error.response.data);
+              console.log(error.response.status);
+              console.log(error.response.headers);
+            } else if (error.request) {
+              // The request was made but no response was received
+              // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
+              // http.ClientRequest in node.js
+              console.log(error.request);
+            } else {
+              // Something happened in setting up the request that triggered an Error
+              console.log('Error', error.message);
+            }
+            console.log(error.config);
+          });
+          */
     } else {
         const fileName = env[varName];
         const response = {data: ""};
@@ -246,6 +331,37 @@ async function getDefaultDir() {
 	}
 	// const val = 'reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders" /v "Personal"'
 	return `${match[1]}/My Money Docs/quotes`;
+}
+
+async function getPupper() {
+    const browser = await puppeteer.launch({
+        headless: false, slowMo: 300,
+        executablePath:	"C:/Program Files/Google/Chrome/Application/chrome.exe"
+    });
+    return browser;
+}
+
+async function acceptCookie(page) {
+    return await page.evaluate(_ => {
+        function xcc_contains(selector, text) {
+            var elements = document.querySelectorAll(selector);
+            return Array.prototype.filter.call(elements, function(element){
+                return RegExp(text, "i").test(element.textContent.trim());
+            });
+        }
+        function subscribe_contains(selector, text) {
+            var elements = document.querySelectorAll(selector);
+            // debug(elements);
+            return elements[0] || null;
+        }
+        var _xcc;
+        _xcc = xcc_contains('[id*=cookie] a, [class*=cookie] a, [id*=cookie] button, [class*=cookie] button, [id*=agree] button',
+            '^(^(Accept all|Accept|I understand|Agree|Okay|OK).*$)$');
+        if (_xcc != null && _xcc.length != 0) { _xcc[0].click(); return 1; }
+        _xcc = subscribe_contains('[class*=close-btn] button',
+            '^(^(Accept all|Accept|I understand|Agree|Okay|OK).*$)$');
+        if (_xcc != null && _xcc.length != 0) { _xcc[0].click(); return 1; }
+    }) || 0;
 }
 
 async function init(dir) {
