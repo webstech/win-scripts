@@ -133,7 +133,18 @@ if (commandOptions.filter.length || commandOptions.group.length) {
         await connection.close();
         await browser.close();
 
-        const quoteString = [...quotes].filter(([k, v]) => commandOptions.all || v ).sort().join("\n");
+        const quoteString = [...quotes].filter(([k, v]) => commandOptions.all || v ).sort(
+            (a, b) => {
+                const nA = Number(a[0]);
+                const nB = Number(b[0]);
+
+                if (Number.isInteger(nA) && Number.isInteger(nB)) {
+                    return a[0] - b[0];
+                } else {
+                    return a[0].localeCompare(b[0]);
+                }
+            }
+        ).join("\n");
 		// console.log(quotes);
 		debug(`quotes collected\n${quoteString}`);
 
