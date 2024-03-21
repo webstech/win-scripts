@@ -5,13 +5,12 @@
   "main": "get_quote.js",
   "type": "module",
   "dependencies": {
-    "axios": "*",
-    "commander": "*",
-    "dugite": "*",
-    "mysql": "*",
-    "puppeteer-core": "*"
+    "axios": "^1.6.8",
+    "commander": "^12.0.0",
+    "dugite": "^2.6.1",
+    "mysql": "^2.18.1",
+    "puppeteer-core": "^22.6.0"
   },
-  "devDependencies": {},
   "bin": {
     "get_quote": "get_quote.js",
     "get_iex_quote": "get_iex_quote.js"
