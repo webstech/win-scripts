@@ -5,11 +5,11 @@
   "main": "get_quote.js",
   "type": "module",
   "dependencies": {
-    "axios": "^1.7.7",
-    "commander": "^12.1.0",
+    "axios": "^1.8.4",
+    "commander": "^13.1.0",
     "dugite": "^2.7.1",
     "mysql": "^2.18.1",
-    "puppeteer-core": "^23.5.0"
+    "puppeteer-core": "^23.11.1"
   },
   "bin": {
     "get_quote": "get_quote.js",
