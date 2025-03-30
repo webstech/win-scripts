@@ -93,6 +93,7 @@ if (commandOptions.filter.length || commandOptions.group.length) {
 	if (!commandOptions.dir) {
 		commandOptions.dir = await getDefaultDir();
 	}
+    // commandOptions.dir = commandOptions.dir.replace(/\\/g, "/");
 
 	if (commandOptions.init) {
 		return await init(commandOptions.dir);
@@ -341,7 +342,7 @@ async function getDefaultDir() {
 		throw new error("Unable to determine default directory");
 	}
 	// const val = 'reg query "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders" /v "Personal"'
-	return `${match[1]}/My Money Docs/quotes`;
+	return `"${match[1]}\\My Money Docs\\quotes"`;
 }
 
 async function getPupper() {
@@ -472,7 +473,9 @@ async function init(dir) {
 }
 
 async function git(args) {
+    // debug(`git: ${args}, ${commandOptions.dir}`);
 	const result = await dogit.GitProcess.exec(args, commandOptions.dir)
+    // debug(`git: ${args}, ${JSON.stringify(result)}`);
 
 	if (result.exitCode === 0) {
 		const output = result.stdout.replace(/\r?\n$/, "");
