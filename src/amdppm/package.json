@@ -1,0 +1,32 @@
+{
+  "name": "@webstech/disable-amdppm",
+  "version": "1.0.0",
+  "description": "Set service start state to disabled.  Run as a scheduled task at startup.  If the service is set to run, update the registry to disabled and run shutdown to restart the machine.",
+  "main": "disable-amdppm.js",
+  "type": "module",
+  "bin": {
+    "disable-amdppm": "disable-amdppm.js"
+  },
+  "config": {
+    "pack_dir": "\\pack\\disable-amdppm",
+    "pack_file": "disable-amdppm-"
+  },
+  "scripts": {
+    "deploy": "npm install -g %npm_config_local_prefix%%npm_package_config_pack_dir%\\%npm_package_config_pack_file%%npm_package_version%.tgz",
+    "pack": "( if exist %npm_config_local_prefix%%npm_package_config_pack_dir% (del /q %npm_config_local_prefix%%npm_package_config_pack_dir%\\*) else mkdir %npm_config_local_prefix%%npm_package_config_pack_dir%) && npm pack --pack-destination=%npm_config_local_prefix%%npm_package_config_pack_dir% && ren %npm_config_local_prefix%%npm_package_config_pack_dir%\\*-%npm_package_version%.tgz %npm_package_config_pack_file%%npm_package_version%.tgz",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "rage-edit": "^1.2.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/webstech/win-scripts.git"
+  },
+  "author": "Chris. Webster <chris@webstech.net> (https://www.webstech.com/)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/webstech/win-scripts/issues"
+  },
+  "homepage": "https://github.com/webstech/win-scripts#readme"
+}
