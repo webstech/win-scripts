@@ -4,6 +4,7 @@
   "description": "Windows command files",
   "main": "index.js",
   "bin": {
+    "owiseone": "./oWiseOne.cmd",
     "pathlist": "./pathlist.cmd",
     "rebase-master": "./rebase-master.cmd",
     "robocop": "./robocop.cmd",

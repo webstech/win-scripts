@@ -1,0 +1,1 @@
+curl "https://wise.com/rates/live?source=USD&target=CAD"
