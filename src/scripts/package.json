@@ -4,6 +4,7 @@
   "description": "Windows command files",
   "main": "index.js",
   "bin": {
+    "nasup": "./nasup.cmd",
     "owiseone": "./oWiseOne.cmd",
     "pathlist": "./pathlist.cmd",
     "rebase-master": "./rebase-master.cmd",
