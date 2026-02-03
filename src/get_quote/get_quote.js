@@ -474,7 +474,7 @@ async function init(dir) {
 
 async function git(args) {
     // debug(`git: ${args}, ${commandOptions.dir}`);
-	const result = await dogit.GitProcess.exec(args, commandOptions.dir)
+	const result = await dogit.exec(args, commandOptions.dir)
     // debug(`git: ${args}, ${JSON.stringify(result)}`);
 
 	if (result.exitCode === 0) {
