@@ -6,16 +6,23 @@ set shares=18000
 set currency1=USD
 set currency2=CAD
 :c extract price from result and separate dollars and cents for math
-FOR /F "usebackq delims=:, tokens=6" %%i IN (`curl "https://wise.com/rates/live?source=%currency1%&target=%currency2%" -s`) DO set price=%%i
+if .%1 == . (
+    FOR /F "usebackq delims=:, tokens=6" %%i IN (`curl "https://wise.com/rates/live?source=%currency1%&target=%currency2%" -s`) DO set price=%%i
+) else (
+    @echo on
+    set price=%1
+)
+
 FOR /F "usebackq delims=. tokens=1" %%i IN ('%price%') DO set dollars=%%i
 FOR /F "usebackq delims=. tokens=2" %%i IN ('%price%') DO set cents=%%i
 
 :c determine divisor for extra dollars
-set /a divi=%cents%/10000
-if %cents% LSS 10    set divi=10
-if %cents% LSS 100   set divi=100
-if %cents% LSS 1000  set divi=1000
-if %cents% LSS 10000 set divi=10000
+rem set /a divi=%cents%/10000
+rem only 5 decimals are supported but not error checked.
+set divi=10
+if %cents% GEQ 10    set divi=100
+if %cents% GEQ 100   set divi=1000
+if %cents% GEQ 1000  set divi=10000
 if %cents% GEQ 10000 set divi=100000
 
 set /a tdol=%dollars%*%shares%
