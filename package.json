@@ -23,5 +23,8 @@
     "src\\amdppm",
     "src\\get_quote",
     "src\\scripts"
-  ]
+  ],
+  "allowScripts": {
+    "dugite@3.3.2": true
+  }
 }
